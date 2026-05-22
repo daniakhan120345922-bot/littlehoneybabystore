@@ -1,0 +1,42 @@
+[
+  {
+    "id": "prod-001",
+    "barcode": "8901234567890",
+    "name": "Organic Cotton Onesie (0-3M)",
+    "price": 18.99,
+    "stock": 42,
+    "category": "Clothing"
+  },
+  {
+    "id": "prod-002",
+    "barcode": "8901234567891",
+    "name": "Silicone Baby Bib — Honey Bee",
+    "price": 12.5,
+    "stock": 65,
+    "category": "Feeding"
+  },
+  {
+    "id": "prod-004",
+    "barcode": "8901234567893",
+    "name": "Bamboo Nursing Pads (24 pk)gfgh",
+    "price": 16.99,
+    "stock": 36,
+    "category": "Feeding"
+  },
+  {
+    "id": "prod-005",
+    "barcode": "8901234567894",
+    "name": "Hypoallergenic Diapers — Size 2 (32 ct)",
+    "price": 24.99,
+    "stock": 55,
+    "category": "Diapering"
+  },
+  {
+    "id": "prod-mpftet89",
+    "barcode": "8961014264388",
+    "name": "pantine",
+    "price": 200,
+    "stock": 2,
+    "category": "Feeding"
+  }
+]

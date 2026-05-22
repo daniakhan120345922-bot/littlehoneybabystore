@@ -1,0 +1,19 @@
+{
+  "owner": {
+    "email": "daniaowner@gmail.com",
+    "passwordHash": "6afba5947577c6615efc209438f9ed8a:3ef78d006ddd5bbf8b47a787d86d885aeba9adce18cf52d19b9136fe5a6f9c072148b0d41415d7ecbf00ffc65e010a36d06637278787961a6591d706961d1687",
+    "displayName": "Dania — Owner"
+  },
+  "cashier": {
+    "username": "cashier",
+    "email": "cashier@gmail.com",
+    "passwordHash": "14c2225621de39ce8a39e94e59251689:bd87f846380aa08aad371dba19cdde95c069434114cd82fad483e677d1d486f1502d1172f8ffa457a5a3275d142279d24913b5a78c61ec5faf808c73e226f8ca",
+    "displayName": "Cashier"
+  },
+  "notifications": {
+    "notifyOwnerOnCashierLogin": true,
+    "lowStockAlert": true,
+    "soundOnScan": true
+  },
+  "activityLog": []
+}
