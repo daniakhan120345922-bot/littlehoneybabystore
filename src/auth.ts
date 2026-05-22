@@ -2,9 +2,23 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { UserRole } from "@/types/auth";
 
+const fallbackAuthUrl =
+  process.env.NEXTAUTH_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
+const authSecret =
+  process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "nextauth-dev-secret";
+if (!process.env.NEXTAUTH_URL) {
+  process.env.NEXTAUTH_URL = fallbackAuthUrl;
+}
+if (!process.env.NEXTAUTH_SECRET) {
+  process.env.NEXTAUTH_SECRET = authSecret;
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: authSecret,
+  debug: process.env.NODE_ENV !== "production",
   providers: [
     Credentials({
       name: "credentials",
