@@ -40,7 +40,7 @@ export function BarcodeScannerModal({ open, onClose, onScan }: Props) {
           ],
         };
 
-        const startScanner = async (cameraConfig: unknown) => {
+        const startScanner = async (cameraConfig: MediaTrackConstraints | string) => {
           await scanner.start(
             cameraConfig,
             config,

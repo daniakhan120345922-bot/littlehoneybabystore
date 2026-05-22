@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
 import { roundMoney } from "@/lib/format";
 import { readInventory, writeInventory } from "@/lib/inventory";

@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
 import { findByBarcode } from "@/lib/inventory";
 import { requireRole } from "@/lib/session";

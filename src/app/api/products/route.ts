@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
 import { generateProductId, readInventory, writeInventory } from "@/lib/inventory";
 import { requireRole } from "@/lib/session";
