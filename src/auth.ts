@@ -4,6 +4,7 @@ import type { UserRole } from "@/types/auth";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     Credentials({
       name: "credentials",
