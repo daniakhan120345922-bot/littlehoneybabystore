@@ -38,5 +38,31 @@
     "price": 200,
     "stock": 2,
     "category": "Feeding"
+  },
+  {
+    "id": "prod-mpi4rcxe",
+    "barcode": "5487125987457",
+    "name": "sohil",
+    "price": 20000,
+    "stock": 2331,
+    "category": "Clothing"
+  },
+  {
+    "id": "prod-mpi6ocyl",
+    "barcode": "8902143863630",
+    "barcodeGenerated": true,
+    "name": "shampoo",
+    "price": 2333,
+    "stock": 2,
+    "category": "Toys"
+  },
+  {
+    "id": "prod-mpi6q6hi",
+    "barcode": "8943508616182",
+    "barcodeGenerated": true,
+    "name": "fhkhgkh",
+    "price": 4545,
+    "stock": 4365,
+    "category": "Clothing"
   }
 ]

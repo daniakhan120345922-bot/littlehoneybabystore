@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type FormEvent, type MouseEvent } from "react";
 import {
   AlertTriangle,
   Camera,
@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, SectionHeader } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { BarcodeScannerModal } from "@/components/pos/BarcodeScannerModal";
+import { BarcodePrintModal } from "@/components/pos/BarcodePrintModal";
 import type { InventoryProduct, ProductCategory } from "@/types/inventory";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,9 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
   });
   const [scannerOpen, setScannerOpen] = useState(false);
   const [viewingProduct, setViewingProduct] = useState<InventoryProduct | null>(null);
+  const [autoGenerateBarcode, setAutoGenerateBarcode] = useState(true);
+  const [printProduct, setPrintProduct] = useState<InventoryProduct | null>(null);
+  const [printModalOpen, setPrintModalOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
@@ -74,7 +78,16 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
     if ("data" in res) setProducts(res.data.products);
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const generateBarcode = useCallback(async () => {
+    const res = await apiFetch<{ success: true; barcode: string }>("/api/barcodes");
+    if ("error" in res) {
+      showToast(res.error.error, "error");
+      return null;
+    }
+    return res.data.barcode;
+  }, [showToast]);
+
+  const handleCreate = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const price = parseFloat(newProduct.price);
     const stock = parseInt(newProduct.stock, 10);
@@ -82,16 +95,32 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
       showToast("Enter valid price and stock.", "error");
       return;
     }
+
+    const shouldGenerateBarcode = autoGenerateBarcode && !newProduct.barcode.trim();
+    let barcodeValue = newProduct.barcode.trim();
+    if (shouldGenerateBarcode) {
+      const generated = await generateBarcode();
+      if (!generated) return;
+      barcodeValue = generated;
+      setNewProduct((p) => ({ ...p, barcode: generated }));
+    }
+
+    if (!barcodeValue) {
+      showToast("Barcode is required unless auto-generate is enabled.", "error");
+      return;
+    }
+
     setIsSaving(true);
     const res = await apiFetch<{ success: true; product: InventoryProduct }>("/api/products", {
       method: "POST",
       body: JSON.stringify({
         product: {
-          barcode: newProduct.barcode.trim(),
+          barcode: barcodeValue,
           name: newProduct.name.trim(),
           price,
           stock,
           category: newProduct.category,
+          barcodeGenerated: shouldGenerateBarcode,
         },
       }),
     });
@@ -102,6 +131,57 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
     }
     showToast(`Added ${res.data.product.name}.`, "success");
     setNewProduct({ barcode: "", name: "", price: "", stock: "", category: "Clothing" });
+    await refreshProducts();
+  };
+
+  const handleCreateAndPrint = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const price = parseFloat(newProduct.price);
+    const stock = parseInt(newProduct.stock, 10);
+    if (Number.isNaN(price) || Number.isNaN(stock)) {
+      showToast("Enter valid price and stock.", "error");
+      return;
+    }
+
+    const shouldGenerateBarcode = autoGenerateBarcode && !newProduct.barcode.trim();
+    let barcodeValue = newProduct.barcode.trim();
+    if (shouldGenerateBarcode) {
+      const generated = await generateBarcode();
+      if (!generated) return;
+      barcodeValue = generated;
+      setNewProduct((p) => ({ ...p, barcode: generated }));
+    }
+
+    if (!barcodeValue) {
+      showToast("Barcode is required unless auto-generate is enabled.", "error");
+      return;
+    }
+
+    setIsSaving(true);
+    const res = await apiFetch<{ success: true; product: InventoryProduct }>("/api/products", {
+      method: "POST",
+      body: JSON.stringify({
+        product: {
+          barcode: barcodeValue,
+          name: newProduct.name.trim(),
+          price,
+          stock,
+          category: newProduct.category,
+          barcodeGenerated: shouldGenerateBarcode,
+        },
+      }),
+    });
+    setIsSaving(false);
+    if ("error" in res) {
+      showToast(res.error.error, "error");
+      return;
+    }
+
+    const createdProduct = res.data.product;
+    showToast(`Added ${createdProduct.name}.`, "success");
+    setNewProduct({ barcode: "", name: "", price: "", stock: "", category: "Clothing" });
+    setPrintProduct(createdProduct);
+    setPrintModalOpen(true);
     await refreshProducts();
   };
 
@@ -215,10 +295,27 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
       <Card variant="elevated">
         <SectionHeader badge="New SKU" title="Add product" description="Register barcode, price, and opening stock" />
         <form onSubmit={handleCreate} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Barcode</label>
+          <div className="sm:col-span-2">
+            <div className="flex items-center justify-between gap-4">
+              <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Barcode</label>
+              <label className="flex items-center gap-2 text-sm text-stone-600">
+                <input
+                  type="checkbox"
+                  checked={autoGenerateBarcode}
+                  onChange={(e) => setAutoGenerateBarcode(e.target.checked)}
+                  className="h-4 w-4 rounded border-stone-300 text-amber-600 focus:ring-amber-400"
+                />
+                Generate barcode automatically
+              </label>
+            </div>
             <div className="mt-2 flex gap-2">
-              <input required value={newProduct.barcode} onChange={(e) => setNewProduct((p) => ({ ...p, barcode: e.target.value }))} className={cn(inputClass, "font-mono")} placeholder="8901234567899" />
+              <input
+                value={newProduct.barcode}
+                onChange={(e) => setNewProduct((p) => ({ ...p, barcode: e.target.value }))}
+                required={!autoGenerateBarcode}
+                className={cn(inputClass, "font-mono")}
+                placeholder={autoGenerateBarcode ? "Leave empty to auto-generate" : "8901234567899"}
+              />
               <Button type="button" variant="outline" size="sm" onClick={() => setScannerOpen(true)} leftIcon={<Camera className="h-4 w-4" />}>
                 Scan
               </Button>
@@ -226,7 +323,13 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
                 Check
               </Button>
             </div>
+            <p className="mt-2 text-xs text-stone-500">
+              {autoGenerateBarcode
+                ? "If left blank, the system will create a unique 12–13 digit numeric barcode."
+                : "Enter an existing barcode manually to save with this product."}
+            </p>
           </div>
+
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Name</label>
             <input required value={newProduct.name} onChange={(e) => setNewProduct((p) => ({ ...p, name: e.target.value }))} className={cn(inputClass, "mt-2")} />
@@ -247,15 +350,26 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
             <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Stock</label>
             <input required type="number" min="0" step="1" value={newProduct.stock} onChange={(e) => setNewProduct((p) => ({ ...p, stock: e.target.value }))} className={cn(inputClass, "mt-2")} />
           </div>
-          <div className="flex items-end">
+          <div className="flex flex-col gap-3 sm:col-span-3 sm:flex-row">
             <Button type="submit" variant="primary" size="lg" fullWidth disabled={isSaving} leftIcon={<Plus className="h-5 w-5" />}>
               Add product
+            </Button>
+            <Button type="button" variant="secondary" size="lg" fullWidth disabled={isSaving} onClick={handleCreateAndPrint}>
+              Generate & Print Barcode
             </Button>
           </div>
         </form>
       </Card>
 
       <BarcodeScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onScan={handleBarcodeScanned} />
+      <BarcodePrintModal
+        open={printModalOpen}
+        product={printProduct}
+        onClose={() => {
+          setPrintModalOpen(false);
+          setPrintProduct(null);
+        }}
+      />
 
       <Card variant="elevated" padding="none" className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-100 px-6 py-5">

@@ -9,6 +9,8 @@ export type InventoryProduct = {
   price: number;
   stock: number;
   category: ProductCategory;
+  barcodeGenerated?: boolean;
+  barcodeImage?: string;
 };
 
 /** Line item sent from the cashier cart to POST /api/checkout */
@@ -46,11 +48,15 @@ export type ApiError = {
 
 /** Owner dashboard: create a new product */
 export type CreateProductPayload = {
-  product: Omit<InventoryProduct, "id">;
+  product: Omit<InventoryProduct, "id"> & {
+    barcode?: string;
+    barcodeGenerated?: boolean;
+    barcodeImage?: string;
+  };
 };
 
 /** Owner dashboard: patch an existing product */
 export type UpdateProductPayload = {
   productId: string;
-  updates: Partial<Pick<InventoryProduct, "name" | "price" | "stock" | "category" | "barcode">>;
+  updates: Partial<Pick<InventoryProduct, "name" | "price" | "stock" | "category" | "barcode" | "barcodeGenerated" | "barcodeImage">>;
 };

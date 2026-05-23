@@ -71,6 +71,25 @@ export async function writeInventory(products: InventoryProduct[]): Promise<void
   await fs.writeFile(INVENTORY_PATH, JSON.stringify(products, null, 2), "utf-8");
 }
 
+export function normalizeBarcode(barcode: string): string {
+  return barcode.replace(/\D/g, "").trim();
+}
+
+export async function generateUniqueBarcode(length = 13): Promise<string> {
+  const products = await readInventory();
+  const existing = new Set(products.map((product) => normalizeBarcode(product.barcode)));
+  const prefix = "89";
+  const bodyLength = Math.max(0, length - prefix.length);
+
+  for (let attempt = 0; attempt < 1000; attempt += 1) {
+    const randomDigits = Array.from({ length: bodyLength }, () => Math.floor(Math.random() * 10)).join("");
+    const candidate = (prefix + randomDigits).slice(0, length);
+    if (!existing.has(candidate)) return candidate;
+  }
+
+  throw new Error("Unable to generate a unique barcode after many attempts.");
+}
+
 /** Finds a product by exact barcode match (trimmed) */
 export async function findByBarcode(barcode: string): Promise<InventoryProduct | null> {
   const normalized = barcode.trim();

@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { generateProductId, readInventory, writeInventory } from "@/lib/inventory";
+import { generateProductId, generateUniqueBarcode, readInventory, writeInventory } from "@/lib/inventory";
 import { requireRole } from "@/lib/session";
 import type { ApiError, CreateProductPayload, InventoryProduct, UpdateProductPayload } from "@/types/inventory";
 import { PRODUCT_CATEGORIES } from "@/lib/constants";
@@ -34,9 +34,18 @@ export async function POST(request: Request) {
   const products = await readInventory();
 
   if ("product" in body && body.product) {
-    const { barcode, name, price, stock, category } = body.product;
-    if (!barcode?.trim() || !name?.trim()) {
-      return errorResponse("Barcode and name are required.", 400, "INVALID_REQUEST");
+    const {
+      barcode = "",
+      name,
+      price,
+      stock,
+      category,
+      barcodeGenerated = false,
+      barcodeImage,
+    } = body.product;
+
+    if (!name?.trim()) {
+      return errorResponse("Name is required.", 400, "INVALID_REQUEST");
     }
     if (typeof price !== "number" || price < 0) {
       return errorResponse("Price must be a non-negative number.", 400, "INVALID_REQUEST");
@@ -47,13 +56,24 @@ export async function POST(request: Request) {
     if (!PRODUCT_CATEGORIES.includes(category)) {
       return errorResponse("Invalid product category.", 400, "INVALID_REQUEST");
     }
-    if (products.some((p) => p.barcode === barcode.trim())) {
+
+    let barcodeToSave = barcode.trim();
+    if (!barcodeToSave && barcodeGenerated) {
+      barcodeToSave = await generateUniqueBarcode(13);
+    }
+
+    if (!barcodeToSave) {
+      return errorResponse("Barcode is required or must be generated.", 400, "INVALID_REQUEST");
+    }
+    if (products.some((p) => p.barcode === barcodeToSave)) {
       return errorResponse("A product with this barcode already exists.", 409, "INVALID_REQUEST");
     }
 
     const newProduct: InventoryProduct = {
       id: generateProductId(),
-      barcode: barcode.trim(),
+      barcode: barcodeToSave,
+      barcodeGenerated: Boolean(barcodeGenerated),
+      barcodeImage,
       name: name.trim(),
       price,
       stock,
@@ -80,6 +100,7 @@ export async function POST(request: Request) {
         return errorResponse("Barcode already in use.", 409, "INVALID_REQUEST");
       }
       current.barcode = trimmed;
+      current.barcodeGenerated = false;
     }
     if (updates.name !== undefined) current.name = updates.name.trim();
     if (updates.price !== undefined) {
