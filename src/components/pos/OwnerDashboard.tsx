@@ -36,8 +36,11 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
   const [search, setSearch] = useState("");
   const [newProduct, setNewProduct] = useState({
     barcode: "",
+    sku: "",
     name: "",
+    originalPrice: "",
     price: "",
+    salePercentage: 0,
     stock: "",
     category: "Clothing" as ProductCategory,
   });
@@ -90,10 +93,26 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
   const handleCreate = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const price = parseFloat(newProduct.price);
+    const rawOriginalPrice = parseFloat(newProduct.originalPrice || "");
     const stock = parseInt(newProduct.stock, 10);
+    const salePercentage = Number(newProduct.salePercentage);
+
     if (Number.isNaN(price) || Number.isNaN(stock)) {
       showToast("Enter valid price and stock.", "error");
       return;
+    }
+
+    let computedOriginalPrice = Number.isFinite(rawOriginalPrice) ? rawOriginalPrice : undefined;
+    let computedDiscountedPrice = undefined;
+    let savePrice = price;
+    if (salePercentage > 0) {
+      if (computedOriginalPrice) {
+        computedDiscountedPrice = parseFloat(((computedOriginalPrice * (100 - salePercentage)) / 100).toFixed(2));
+        savePrice = computedDiscountedPrice;
+      } else {
+        computedOriginalPrice = parseFloat((price / ((100 - salePercentage) / 100)).toFixed(2));
+        computedDiscountedPrice = price;
+      }
     }
 
     const shouldGenerateBarcode = autoGenerateBarcode && !newProduct.barcode.trim();
@@ -111,18 +130,22 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
     }
 
     setIsSaving(true);
+    const payload = {
+      barcode: barcodeValue,
+      sku: newProduct.sku.trim() || undefined,
+      name: newProduct.name.trim(),
+      price: savePrice,
+      originalPrice: computedOriginalPrice,
+      discountedPrice: computedDiscountedPrice,
+      salePercentage: salePercentage > 0 ? salePercentage : undefined,
+      stock,
+      category: newProduct.category,
+      barcodeGenerated: shouldGenerateBarcode,
+    } as const;
+
     const res = await apiFetch<{ success: true; product: InventoryProduct }>("/api/products", {
       method: "POST",
-      body: JSON.stringify({
-        product: {
-          barcode: barcodeValue,
-          name: newProduct.name.trim(),
-          price,
-          stock,
-          category: newProduct.category,
-          barcodeGenerated: shouldGenerateBarcode,
-        },
-      }),
+      body: JSON.stringify({ product: payload }),
     });
     setIsSaving(false);
     if ("error" in res) {
@@ -130,17 +153,33 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
       return;
     }
     showToast(`Added ${res.data.product.name}.`, "success");
-    setNewProduct({ barcode: "", name: "", price: "", stock: "", category: "Clothing" });
+    setNewProduct({ barcode: "", sku: "", name: "", originalPrice: "", price: "", salePercentage: 0, stock: "", category: "Clothing" });
     await refreshProducts();
   };
 
   const handleCreateAndPrint = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     const price = parseFloat(newProduct.price);
+    const rawOriginalPrice = parseFloat(newProduct.originalPrice || "");
     const stock = parseInt(newProduct.stock, 10);
+    const salePercentage = Number(newProduct.salePercentage);
+
     if (Number.isNaN(price) || Number.isNaN(stock)) {
       showToast("Enter valid price and stock.", "error");
       return;
+    }
+
+    let computedOriginalPrice = Number.isFinite(rawOriginalPrice) ? rawOriginalPrice : undefined;
+    let computedDiscountedPrice = undefined;
+    let savePrice = price;
+    if (salePercentage > 0) {
+      if (computedOriginalPrice) {
+        computedDiscountedPrice = parseFloat(((computedOriginalPrice * (100 - salePercentage)) / 100).toFixed(2));
+        savePrice = computedDiscountedPrice;
+      } else {
+        computedOriginalPrice = parseFloat((price / ((100 - salePercentage) / 100)).toFixed(2));
+        computedDiscountedPrice = price;
+      }
     }
 
     const shouldGenerateBarcode = autoGenerateBarcode && !newProduct.barcode.trim();
@@ -158,18 +197,22 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
     }
 
     setIsSaving(true);
+    const payload = {
+      barcode: barcodeValue,
+      sku: newProduct.sku.trim() || undefined,
+      name: newProduct.name.trim(),
+      price: savePrice,
+      originalPrice: computedOriginalPrice,
+      discountedPrice: computedDiscountedPrice,
+      salePercentage: salePercentage > 0 ? salePercentage : undefined,
+      stock,
+      category: newProduct.category,
+      barcodeGenerated: shouldGenerateBarcode,
+    } as const;
+
     const res = await apiFetch<{ success: true; product: InventoryProduct }>("/api/products", {
       method: "POST",
-      body: JSON.stringify({
-        product: {
-          barcode: barcodeValue,
-          name: newProduct.name.trim(),
-          price,
-          stock,
-          category: newProduct.category,
-          barcodeGenerated: shouldGenerateBarcode,
-        },
-      }),
+      body: JSON.stringify({ product: payload }),
     });
     setIsSaving(false);
     if ("error" in res) {
@@ -179,7 +222,7 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
 
     const createdProduct = res.data.product;
     showToast(`Added ${createdProduct.name}.`, "success");
-    setNewProduct({ barcode: "", name: "", price: "", stock: "", category: "Clothing" });
+    setNewProduct({ barcode: "", sku: "", name: "", originalPrice: "", price: "", salePercentage: 0, stock: "", category: "Clothing" });
     setPrintProduct(createdProduct);
     setPrintModalOpen(true);
     await refreshProducts();
@@ -335,6 +378,11 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
             <input required value={newProduct.name} onChange={(e) => setNewProduct((p) => ({ ...p, name: e.target.value }))} className={cn(inputClass, "mt-2")} />
           </div>
           <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-stone-400">SKU</label>
+            <input value={newProduct.sku} onChange={(e) => setNewProduct((p) => ({ ...p, sku: e.target.value }))} className={cn(inputClass, "mt-2 font-mono")} placeholder="Leave empty to auto-generate" />
+            <p className="mt-2 text-xs text-stone-500">Optional SKU, generated automatically when left blank.</p>
+          </div>
+          <div>
             <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Category</label>
             <select value={newProduct.category} onChange={(e) => setNewProduct((p) => ({ ...p, category: e.target.value as ProductCategory }))} className={cn(inputClass, "mt-2")}>
               {PRODUCT_CATEGORIES.map((c) => (
@@ -343,8 +391,44 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
             </select>
           </div>
           <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Original price</label>
+            <input type="number" min="0" step="0.01" value={newProduct.originalPrice} onChange={(e) => setNewProduct((p) => ({ ...p, originalPrice: e.target.value }))} className={cn(inputClass, "mt-2")} placeholder="Optional for sale pricing" />
+          </div>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Sale %</label>
+            <input type="number" min="0" max="100" step="1" value={newProduct.salePercentage} onChange={(e) => setNewProduct((p) => ({ ...p, salePercentage: Number(e.target.value) }))} className={cn(inputClass, "mt-2")} />
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[10, 20, 30, 40, 50].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() => setNewProduct((p) => ({
+                    ...p,
+                    salePercentage: pct,
+                    price: p.originalPrice
+                      ? String(((parseFloat(p.originalPrice) * (100 - pct)) / 100).toFixed(2))
+                      : p.price,
+                  }))}
+                  className={cn(
+                    "rounded-2xl border px-3 py-2 text-xs font-semibold transition",
+                    newProduct.salePercentage === pct
+                      ? "border-amber-500 bg-amber-100 text-amber-800"
+                      : "border-stone-200 bg-white text-stone-600 hover:border-amber-400 hover:bg-amber-50"
+                  )}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
             <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Price (Rs)</label>
             <input required type="number" min="0" step="0.01" value={newProduct.price} onChange={(e) => setNewProduct((p) => ({ ...p, price: e.target.value }))} className={cn(inputClass, "mt-2")} />
+            {newProduct.salePercentage > 0 && newProduct.originalPrice && (
+              <p className="mt-2 text-xs text-amber-700">
+                Sale price preview: {formatCurrency(parseFloat(newProduct.price || "0"))} after {newProduct.salePercentage}% off
+              </p>
+            )}
           </div>
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Stock</label>
@@ -355,7 +439,7 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
               Add product
             </Button>
             <Button type="button" variant="secondary" size="lg" fullWidth disabled={isSaving} onClick={handleCreateAndPrint}>
-              Generate & Print Barcode
+              Generate Barcode With Details
             </Button>
           </div>
         </form>
@@ -384,6 +468,7 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
             <thead>
               <tr className="border-b border-stone-100 bg-stone-50/80 text-[11px] font-bold uppercase tracking-widest text-stone-400">
                 <th className="px-6 py-4">Barcode</th>
+                <th className="px-4 py-4">SKU</th>
                 <th className="px-4 py-4">Product</th>
                 <th className="px-4 py-4">Category</th>
                 <th className="px-4 py-4">Price</th>
@@ -395,6 +480,7 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
               {filtered.map((product) => (
                 <tr key={product.id} className="transition hover:bg-amber-50/20">
                   <td className="px-6 py-4 font-mono text-xs text-stone-500">{product.barcode}</td>
+                  <td className="px-4 py-4 font-mono text-xs text-stone-500">{product.sku ?? "—"}</td>
                   <td className="px-4 py-4">
                     {editingId === product.id ? (
                       <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className={inputClass} />
@@ -417,7 +503,14 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
                     {editingId === product.id ? (
                       <input type="number" min="0" step="0.01" value={editForm.price} onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value }))} className={cn(inputClass, "w-28")} />
                     ) : (
-                      formatCurrency(product.price)
+                      <div className="space-y-1">
+                        <div>{formatCurrency(product.price)}</div>
+                        {product.salePercentage ? (
+                          <div className="text-xs text-amber-700">
+                            {product.salePercentage}% off {product.originalPrice ? `from ${formatCurrency(product.originalPrice)}` : ""}
+                          </div>
+                        ) : null}
+                      </div>
                     )}
                   </td>
                   <td className="px-4 py-4">
@@ -482,6 +575,12 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
                 <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">Barcode</p>
                 <p className="mt-1 font-mono text-sm text-stone-800">{viewingProduct.barcode}</p>
               </div>
+              {viewingProduct.sku ? (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">SKU</p>
+                  <p className="mt-1 font-mono text-sm text-stone-800">{viewingProduct.sku}</p>
+                </div>
+              ) : null}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">Category</p>
@@ -496,6 +595,11 @@ export function OwnerDashboard({ initialProducts }: { initialProducts: Inventory
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">Price</p>
                   <p className="mt-1 text-lg font-semibold text-stone-900">{formatCurrency(viewingProduct.price)}</p>
+                  {viewingProduct.salePercentage ? (
+                    <p className="mt-2 text-sm font-semibold text-amber-700">
+                      {viewingProduct.salePercentage}% off{viewingProduct.originalPrice ? ` from ${formatCurrency(viewingProduct.originalPrice)}` : ""}
+                    </p>
+                  ) : null}
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">Stock value</p>

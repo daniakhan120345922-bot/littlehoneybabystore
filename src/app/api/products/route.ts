@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { generateProductId, generateUniqueBarcode, readInventory, writeInventory } from "@/lib/inventory";
+import { generateUniqueSku } from "@/lib/SKUGenerator";
 import { requireRole } from "@/lib/session";
 import type { ApiError, CreateProductPayload, InventoryProduct, UpdateProductPayload } from "@/types/inventory";
 import { PRODUCT_CATEGORIES } from "@/lib/constants";
@@ -37,8 +38,12 @@ export async function POST(request: Request) {
     if ("product" in body && body.product) {
     const {
       barcode = "",
+      sku,
       name,
       price,
+      originalPrice,
+      discountedPrice,
+      salePercentage,
       stock,
       category,
       barcodeGenerated = false,
@@ -57,6 +62,9 @@ export async function POST(request: Request) {
     if (!PRODUCT_CATEGORIES.includes(category)) {
       return errorResponse("Invalid product category.", 400, "INVALID_REQUEST");
     }
+    if (salePercentage !== undefined && (salePercentage < 0 || salePercentage > 100)) {
+      return errorResponse("Sale percentage must be between 0 and 100.", 400, "INVALID_REQUEST");
+    }
 
     let barcodeToSave = barcode.trim();
     if (!barcodeToSave && barcodeGenerated) {
@@ -70,13 +78,30 @@ export async function POST(request: Request) {
       return errorResponse("A product with this barcode already exists.", 409, "INVALID_REQUEST");
     }
 
+    const productId = generateProductId();
+    const skuToSave = sku?.trim() || (await generateUniqueSku(category, productId, products.map((item) => item.sku ?? "")));
+    let computedOriginalPrice = originalPrice;
+    let computedDiscountedPrice = discountedPrice;
+    if (salePercentage) {
+      if (computedOriginalPrice !== undefined) {
+        computedDiscountedPrice = parseFloat(((computedOriginalPrice * (100 - salePercentage)) / 100).toFixed(2));
+      } else {
+        computedOriginalPrice = parseFloat((price / ((100 - salePercentage) / 100)).toFixed(2));
+        computedDiscountedPrice = price;
+      }
+    }
+
     const newProduct: InventoryProduct = {
-      id: generateProductId(),
+      id: productId,
       barcode: barcodeToSave,
+      sku: skuToSave,
       barcodeGenerated: Boolean(barcodeGenerated),
       barcodeImage,
       name: name.trim(),
-      price,
+      price: salePercentage ? computedDiscountedPrice ?? price : price,
+      originalPrice: salePercentage ? computedOriginalPrice : originalPrice,
+      discountedPrice: salePercentage ? computedDiscountedPrice : discountedPrice,
+      salePercentage: salePercentage ?? undefined,
       stock,
       category,
     };

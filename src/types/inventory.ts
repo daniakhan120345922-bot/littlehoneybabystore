@@ -5,8 +5,12 @@ export type ProductCategory = "Toys" | "Clothing" | "Feeding" | "Diapering";
 export type InventoryProduct = {
   id: string;
   barcode: string;
+  sku?: string;
   name: string;
   price: number;
+  originalPrice?: number;
+  discountedPrice?: number;
+  salePercentage?: number;
   stock: number;
   category: ProductCategory;
   barcodeGenerated?: boolean;
@@ -58,5 +62,5 @@ export type CreateProductPayload = {
 /** Owner dashboard: patch an existing product */
 export type UpdateProductPayload = {
   productId: string;
-  updates: Partial<Pick<InventoryProduct, "name" | "price" | "stock" | "category" | "barcode" | "barcodeGenerated" | "barcodeImage">>;
+  updates: Partial<Pick<InventoryProduct, "name" | "price" | "stock" | "category" | "barcode" | "sku" | "originalPrice" | "discountedPrice" | "salePercentage" | "barcodeGenerated" | "barcodeImage">>;
 };
