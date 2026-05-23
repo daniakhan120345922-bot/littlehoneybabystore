@@ -1,9 +1,13 @@
 import fs from "fs/promises";
+import os from "os";
 import path from "path";
 import type { InventoryProduct } from "@/types/inventory";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const INVENTORY_PATH = path.join(DATA_DIR, "inventory.json");
+const APP_DATA_DIR = path.join(process.cwd(), "data");
+const READONLY_INVENTORY_PATH = path.join(APP_DATA_DIR, "inventory.json");
+const INVENTORY_PATH = process.env.NODE_ENV === "production"
+  ? path.join(os.tmpdir(), "little-honey-baby-store", "inventory.json")
+  : READONLY_INVENTORY_PATH;
 
 /** Seed data used when inventory.json is missing or corrupt */
 export const SEED_INVENTORY: InventoryProduct[] = [
@@ -52,6 +56,16 @@ export const SEED_INVENTORY: InventoryProduct[] = [
 /** Reads all products from the JSON inventory file */
 export async function readInventory(): Promise<InventoryProduct[]> {
   try {
+    if (process.env.NODE_ENV === "production") {
+      try {
+        await fs.access(INVENTORY_PATH);
+      } catch {
+        const raw = await fs.readFile(READONLY_INVENTORY_PATH, "utf-8");
+        await fs.mkdir(path.dirname(INVENTORY_PATH), { recursive: true });
+        await fs.writeFile(INVENTORY_PATH, raw, "utf-8");
+      }
+    }
+
     const raw = await fs.readFile(INVENTORY_PATH, "utf-8");
     const parsed = JSON.parse(raw) as InventoryProduct[];
     if (!Array.isArray(parsed) || parsed.length === 0) {
@@ -67,7 +81,7 @@ export async function readInventory(): Promise<InventoryProduct[]> {
 
 /** Persists the full inventory array to disk */
 export async function writeInventory(products: InventoryProduct[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.mkdir(path.dirname(INVENTORY_PATH), { recursive: true });
   await fs.writeFile(INVENTORY_PATH, JSON.stringify(products, null, 2), "utf-8");
 }
 

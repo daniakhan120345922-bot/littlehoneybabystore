@@ -31,9 +31,10 @@ export async function POST(request: Request) {
     return errorResponse("Invalid JSON body.", 400, "INVALID_REQUEST");
   }
 
-  const products = await readInventory();
+  try {
+    const products = await readInventory();
 
-  if ("product" in body && body.product) {
+    if ("product" in body && body.product) {
     const {
       barcode = "",
       name,
@@ -125,7 +126,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, product: current });
   }
 
-  return errorResponse("Provide either `product` (create) or `productId` + `updates` (update).", 400, "INVALID_REQUEST");
+    return errorResponse("Provide either `product` (create) or `productId` + `updates` (update).", 400, "INVALID_REQUEST");
+  } catch (error) {
+    console.error("POST /api/products error:", error);
+    return errorResponse("Internal server error while saving product.", 500, "INVALID_REQUEST");
+  }
 }
 
 /** DELETE /api/products?id= — delete a product (owner only) */
